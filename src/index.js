@@ -1,6 +1,10 @@
 const Papa = require('papaparse');
 const filename = process.argv[2];
 const fs = require('fs');
+const firebase = require('firebase');
+// Keys file containing Firebase things
+const keys = require('./keys');
+firebase.initializeApp(keys);
 console.log("Parsing file: ", filename);
 
 const file = fs.readFileSync(filename, 'utf8');
@@ -29,15 +33,15 @@ function processData(data) {
 
 function pushDataToFirebase(results) {
   const metadata = getMetadata(results.slice(0, 2));
-  const data = results.slice(3);
-  data.map((donation) => {
-    pushDonationToFirebase(donation, metadata);
+  const data = results.slice(3, results.length-1);
+  data.map((donation, index) => {
+    pushDonationToFirebase(donation, metadata, index);
   });
 }
 
 // donor, address, suburb, state, postcode, amount, type
 //   0  ,    1   ,    2  ,   3  ,     4   ,    5  ,  6
-function pushDonationToFirebase(donation, metadata) {
+function pushDonationToFirebase(donation, metadata, index) {
   const processedDonation = {
     ...metadata,
     donor: donation[0],
@@ -51,6 +55,10 @@ function pushDonationToFirebase(donation, metadata) {
     type: donation[6]
   };
   console.log("created parsed donation: ", processedDonation);
+  const ref = firebase.database().ref(metadata.party);
+  ref.push(processedDonation, () => {
+    console.log("Finished donation: ", index);
+  });
 }
 
 function readYearLine(lineZero) {
